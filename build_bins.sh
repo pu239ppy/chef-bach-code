@@ -230,11 +230,11 @@ if ! [[ -f python-carbon_0.9.10_all.deb  && \
   done
   unzip -o https_intracluster.zip
   while ! $(file carbon_master.zip | grep -q 'Zip archive data'); do
-    $CURL -L https://github.com/graphite-project/carbon/archive/master.zip -o carbon_master.zip
+    $CURL -L https://github.com/pu239ppy/carbon/archive/enable_whisper_caching.zip -o carbon_master.zip
   done
   unzip -o carbon_master.zip
   while ! $(file whisper_master.zip | grep -q 'Zip archive data'); do
-    $CURL -L https://github.com/graphite-project/whisper/archive/master.zip -o whisper_master.zip
+    $CURL -L https://github.com/pu239ppy/whisper/archive/master.zip -o whisper_master.zip
   done
   unzip -o whisper_master.zip
   # build with FPM
