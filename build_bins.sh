@@ -234,12 +234,12 @@ if ! [[ -f python-carbon_0.9.10_all.deb  && \
   done
   unzip -o carbon_master.zip
   while ! $(file whisper_master.zip | grep -q 'Zip archive data'); do
-    $CURL -L https://github.com/pu239ppy/whisper/archive/master.zip -o whisper_master.zip
+    $CURL -L https://github.com/pu239ppy/whisper/archive/timestamps_in_cache.zip -o whisper_master.zip
   done
   unzip -o whisper_master.zip
   # build with FPM
-  fpm --epoch $EPOCH --log info --python-install-bin /opt/graphite/bin -f -s python -t deb carbon-master/setup.py
-  fpm --epoch $EPOCH --log info --python-install-bin /opt/graphite/bin  -f -s python -t deb whisper-master/setup.py
+  fpm --epoch $EPOCH --log info --python-install-bin /opt/graphite/bin -f -s python -t deb carbon-enable_whisper_caching/setup.py
+  fpm --epoch $EPOCH --log info --python-install-bin /opt/graphite/bin  -f -s python -t deb whisper-timestamps_in_cache/setup.py
   # until PR https://github.com/graphite-project/graphite-web/pull/1320 is merged 
   #fpm --epoch $EPOCH --log info --python-install-lib /opt/graphite/webapp -f -s python -t deb graphite-web-master/setup.py
   fpm --epoch $EPOCH --log info --python-install-lib /opt/graphite/webapp -f -s python -t deb graphite-web-https_intracluster/setup.py
