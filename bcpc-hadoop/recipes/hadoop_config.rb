@@ -12,6 +12,18 @@ bash "update-hadoop-conf-alternatives" do
     update-alternatives --set hadoop-conf /etc/hadoop/conf.#{node.chef_environment}
   }
 end
+if ( node[:bcpc][:hadoop][:hdfs][:ldap][:integration] == true )
+
+  ldap_pwd = ( node[:bcpc][:hadoop][:hdfs][:ldap][:password].nil? ? get_config('password', 'ldap', 'os') : node[:bcpc][:hadoop][:hdfs][:ldap][:password] )
+
+  file "/etc/hadoop/conf/ldap-conn-pass.txt" do
+    content "#{ldap_pwd}"
+    mode 0444
+    owner "hdfs"
+    group "hadoop"
+    sensitive true
+  end
+end
 
 hadoop_conf_files = %w{capacity-scheduler.xml
    core-site.xml
@@ -51,20 +63,25 @@ template "/etc/hadoop/conf/topology" do
   mode 0655
 end
 
-%w{yarn-env.sh
-  hadoop-env.sh}.each do |t|
- template "/etc/hadoop/conf/#{t}" do
-   source "hdp_#{t}.erb"
-   mode 0555
-   variables(:nn_hosts => node[:bcpc][:hadoop][:nn_hosts],
-             :zk_hosts => node[:bcpc][:hadoop][:zookeeper][:servers],
-             :jn_hosts => node[:bcpc][:hadoop][:jn_hosts],
-             :mounts => node[:bcpc][:hadoop][:mounts],
-             :nn_jmx_port => node[:bcpc][:hadoop][:namenode][:jmx][:port],
-             :dn_jmx_port => node[:bcpc][:hadoop][:datanode][:jmx][:port]
-   )
- end
+template "/etc/hadoop/conf/hadoop-env.sh" do
+  source "hdp_hadoop-env.sh.erb"
+  mode 0555
+  variables(
+    :nn_jmx_port => node[:bcpc][:hadoop][:namenode][:jmx][:port],
+    :dn_jmx_port => node[:bcpc][:hadoop][:datanode][:jmx][:port]
+  )
 end
+
+template "/etc/hadoop/conf/yarn-env.sh" do
+  source "hdp_yarn-env.sh.erb"
+  mode 0555
+  variables(
+   :yarn_jute_maxbuffer => node['bcpc']['hadoop']['yarn']['opts']['jute_buffer'],
+   :nm_jmx_port => node[:bcpc][:hadoop][:nodemanager][:jmx][:port],
+   :rm_jmx_port => node[:bcpc][:hadoop][:resourcemanager][:jmx][:port]
+  )
+end  
+
 
 package "openjdk-7-jdk" do
     action :upgrade

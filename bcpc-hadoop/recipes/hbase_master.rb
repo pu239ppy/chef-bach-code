@@ -1,4 +1,7 @@
+::Chef::Recipe.send(:include, Bcpc_Hadoop::Helper)
+::Chef::Resource::Bash.send(:include, Bcpc_Hadoop::Helper)
 include_recipe 'bcpc-hadoop::hbase_config'
+include_recipe 'bcpc-hadoop::hbase_queries'
 
 #
 # Updating node attributes to copy HBase master log file to centralized location (HDFS)
@@ -13,53 +16,19 @@ node.default['bcpc']['hadoop']['copylog']['hbase_master_out'] = {
     'docopy' => true
 }
 
-# Set hbase related zabbix triggers
-node.normal['bcpc']['hadoop']['graphite']['service_queries']['hbase_master'] = {
-  'hbasenonheapmem' => {
-     'type' => "jmx",
-     'query' => "memory.NonHeapMemoryUsage_committed",
-     'trigger_val' => "max(61,0)",
-     'value_type' => 3,
-     'trigger_cond' => "=0",
-     'trigger_name' => "HBaseMasterAvailability",
-     'enable' => true,
-     'trigger_dep' => ["NameNodeAvailability"],
-     'trigger_desc' => "HBase master seems to be down",
-     'severity' => 5,
-     'route_to' => "admin"
-  },
-  'hbaseheapmem' => {
-     'type' => "jmx",
-     'query' => "memory.HeapMemoryUsage_committed",
-     'history_days' => 2,
-     'trend_days' => 30,
-     'enable' => true
-  },
-  'numrsservers' => {
-     'type' => "jmx",
-     'query' => "hbm_server.Master.numRegionServers",
-     'trigger_val' => "max(61,0)",
-     'value_type' => 3,
-     'trigger_cond' => "=0",
-     'trigger_name' => "HBaseRSAvailability",
-     'enable' => true,
-     'trigger_dep' => ["HBaseMasterAvailability"],
-     'trigger_desc' => "HBase region server seems to be down",
-     'severity' => 5,
-     'route_to' => "admin"
-  }
-}
-
-%w{
-hbase
-hbase-master
-hbase-thrift
-libsnappy1
-phoenix
-}.each do |p|
+%W(#{hwx_pkg_str('hbase', node[:bcpc][:hadoop][:distribution][:release])}
+   #{hwx_pkg_str('phoenix', node[:bcpc][:hadoop][:distribution][:release])}
+   libsnappy1).each do |p|
   package p do
-    action :install
+    action :upgrade
   end
+end
+
+%w{hbase-master
+hbase-client
+phoenix-client
+}.each do |p|
+  hdp_select(p, node[:bcpc][:hadoop][:distribution][:active_release])
 end
 
 user_ulimit "hbase" do
@@ -70,18 +39,31 @@ service "hbase-thrift" do
   action :disable
 end 
 
-bash "create-hbase-dir" do
-  code "hadoop fs -mkdir -p /hbase; hadoop fs -chown hbase:hadoop /hbase"
-  user "hdfs"
-  not_if "sudo -u hdfs hadoop fs -test -d /hbase"
+bash 'create-hbase-dir' do
+  code  <<-EOH
+    hdfs dfs -mkdir -p #{node['bcpc']['hadoop']['hbase']['root_dir']}
+    hdfs dfs -chown hbase:hadoop #{node['bcpc']['hadoop']['hbase']['root_dir']}
+  EOH
+  user 'hdfs'
+  not_if "hdfs dfs -test -d #{node['bcpc']['hadoop']['hbase']['root_dir']}", :user => 'hdfs'
 end
 
-directory "/usr/hdp/current/hbase-master/lib/native/Linux-amd64-64" do
+bash 'create-hbase-staging-dir' do
+  code <<-EOH
+    hdfs dfs -mkdir -p #{node['bcpc']['hadoop']['hbase']['bulkload_staging_dir']}
+    hdfs dfs -chown hbase:hadoop #{node['bcpc']['hadoop']['hbase']['bulkload_staging_dir']}
+    hdfs dfs -chmod 711 #{node['bcpc']['hadoop']['hbase']['bulkload_staging_dir']}
+  EOH
+  user 'hdfs'
+  not_if "hdfs dfs -test -d #{node['bcpc']['hadoop']['hbase']['bulkload_staging_dir']}", :user => 'hdfs'
+end
+
+directory "/usr/hdp/#{node[:bcpc][:hadoop][:distribution][:active_release]}/hbase/lib/native/Linux-amd64-64" do
   recursive true
   action :create
- end
+end
 
-link "/usr/hdp/current/hbase-master/lib/native/Linux-amd64-64/libsnappy.so" do
+link "/usr/hdp/#{node[:bcpc][:hadoop][:distribution][:active_release]}/hbase/lib/native/Linux-amd64-64/libsnappy.so" do
   to "/usr/lib/libsnappy.so.1"
 end
 
@@ -93,11 +75,30 @@ end
 service "hbase-master" do
   action [:enable, :start]
   supports :status => true, :restart => true, :reload => false
+  subscribes :restart, "template[/etc/hbase/conf/hadoop-metrics2-hbase.properties]", :delayed
   subscribes :restart, "template[/etc/hbase/conf/hbase-site.xml]", :delayed
   subscribes :restart, "template[/etc/hbase/conf/hbase-policy.xml]", :delayed
   subscribes :restart, "template[/etc/hbase/conf/hbase-env.sh]", :delayed
+  subscribes :restart, "template[/etc/hbase/conf/log4j.properties]", :delayed
   subscribes :restart, "template[/etc/hadoop/conf/hdfs-site.xml]", :delayed
+  subscribes :restart, "bash[hdp-select hbase-master]", :delayed
   subscribes :restart, "user_ulimit[hbase]", :delayed
-  subscribes :restart, "template[/etc/hadoop/conf/hdfs-site.xml]", :delayed
   subscribes :restart, "template[/etc/hadoop/conf/core-site.xml]", :delayed
+end
+
+if node["bcpc"]["hadoop"]["phoenix"]["tracing"]["enabled"]
+
+  template "/tmp/trace_table.sql" do
+    source "phoenix_trace-table.sql.erb"
+    mode "0755"
+    action :create
+  end
+
+  bash "create_phoenix_trace_table" do
+    code <<-EOH
+    HBASE_CONF_PATH=/etc/hadoop/conf:/etc/hbase/conf /usr/hdp/current/phoenix-client/bin/sqlline.py "#{node[:bcpc][:hadoop][:zookeeper][:servers].map{ |s| float_host(s[:hostname])}.join(",")}:#{node[:bcpc][:hadoop][:zookeeper][:port]}:/hbase" /tmp/trace_table.sql
+    EOH
+    user "hbase"
+  end
+
 end

@@ -73,10 +73,10 @@ default['bcpc']['ceph']['vms_mem']['name'] = "vmsmem"
 #  Network settings for the cluster
 #
 ###########################################
-default['bcpc']['management']['vip'] = "10.17.1.15"
+default['bcpc']['management']['vip'] = "10.0.2.5"
 default['bcpc']['management']['netmask'] = "255.255.255.0"
-default['bcpc']['management']['cidr'] = "10.17.1.0/24"
-default['bcpc']['management']['gateway'] = "10.17.1.1"
+default['bcpc']['management']['cidr'] = "10.0.2.0/24"
+default['bcpc']['management']['gateway'] = "10.0.2.2"
 default['bcpc']['management']['interface'] = "eth0"
 
 default['bcpc']['metadata']['ip'] = "169.254.169.254"
@@ -114,6 +114,8 @@ default['bcpc']['repos']['ceph-fcgi'] = "http://gitbuilder.ceph.com/libapache-mo
 default['bcpc']['repos']['gridcentric'] = "http://downloads.gridcentric.com/packages/%s/%s/ubuntu"
 default['bcpc']['repos']['ubuntu-tools'] = "http://ppa.launchpad.net/canonical-support/support-tools/ubuntu"
 default['bcpc']['ubuntu']['version'] = "precise"
+default["bcpc"]["repos"]["hortonworks"] = 'http://public-repo-1.hortonworks.com/HDP/ubuntu12/2.x/updates/2.3.4.0'
+default["bcpc"]["repos"]["hdp_utils"] = 'http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.20/repos/ubuntu12'
 
 ###########################################
 #
@@ -132,17 +134,6 @@ default['bcpc']['admin_tenant'] = "AdminTenant"
 default['bcpc']['admin_role'] = "Admin"
 default['bcpc']['member_role'] = "Member"
 default['bcpc']['admin_email'] = "admin@localhost.com"
-
-default['bcpc']['zabbix']['user'] = "zabbix"
-default['bcpc']['zabbix']['group'] = "adm"
-default['bcpc']['zabbix']['server_port'] = 10051
-default['bcpc']['zabbix']['web_port'] = 7777
-default['bcpc']['zabbix']['scripts']['sender'] = "/usr/local/bin/run_zabbix_sender.sh"
-default['bcpc']['zabbix']['scripts']['mail'] = "/usr/local/bin/zbx_mail.sh"
-default['bcpc']['zabbix']['scripts']['query_graphite'] = "/usr/local/bin/query_graphite.py"
-# Interval (in seconds) during which we expect chef-client to have run at least once
-default['bcpc']['zabbix']['chef_client_check_interval'] = (node['chef_client']['interval'].to_i + node['chef_client']['splay'].to_i) * 2
-
 default['bcpc']['keepalived']['config_template'] = "keepalived.conf_openstack"
 
 default[:bcpc][:ports][:apache][:radosgw] = 8080
@@ -150,12 +141,23 @@ default[:bcpc][:ports][:apache][:radosgw_https] = 8443
 default[:bcpc][:ports][:haproxy][:radosgw] = 80
 default[:bcpc][:ports][:haproxy][:radosgw_https] = 443
 
+# Memory where InnoDB caches table and index data (in MB). Default is 128M.
+default['bcpc']['mysql']['innodb_buffer_pool_size'] = [(node[:memory][:total].to_i / 1024 * 0.02).floor, 128].max
+
 #################################################
 #  attributes for chef vault download and install
 #################################################
 default['bcpc']['chefvault']['filename'] = "chef-vault-2.2.4.gem"
 default['bcpc']['chefvault']['checksum'] = "8d89c96554f614ec2a80ef20e98b0574c355a6ea119a30bd49aa9cfdcde15b4a"
-# gems package pathname
-default['bcpc']['bin_dir']['gems'] = '/home/vagrant/chef-bcpc/bins/gems'
+# bcpc binary server pathnames
+default['bcpc']['bin_dir']['path'] = '/home/vagrant/chef-bcpc/bins/'
+default['bcpc']['bin_dir']['gems'] = "#{node['bcpc']['bin_dir']['path']}/gems"
 # rubygems download website URL
 default['bcpc']['gem_source'] = 'https://rubygems.org/downloads'
+
+# mysql connector attributes
+default['bcpc']['mysql']['connector']['version'] = '5.1.37'
+default['bcpc']['mysql']['connector']['tarball_md5sum'] = '9ef584d3328735db51bd5dde3f602c22'
+default['bcpc']['mysql']['connector']['url'] = "http://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-#{node['bcpc']['mysql']['connector']['version']}.tar.gz"
+default['bcpc']['mysql']['connector']['package']['short_name'] = 'mysql-connector-java'
+default['bcpc']['mysql']['connector']['package']['name'] = "#{node['bcpc']['mysql']['connector']['package']['short_name']}_#{node['bcpc']['mysql']['connector']['version']}_all.deb"

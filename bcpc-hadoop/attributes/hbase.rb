@@ -1,3 +1,5 @@
+default['bcpc']['hadoop']['hbase']['root_dir'] = "#{node['bcpc']['hadoop']['hdfs_url']}/hbase"
+default['bcpc']['hadoop']['hbase']['bulkload_staging_dir'] = "/tmp/hbase"
 default["bcpc"]["hadoop"]["hbase"]["repl"]["enabled"] = false
 default["bcpc"]["hadoop"]["hbase"]["repl"]["peer_id"] =  node.chef_environment.gsub("-","_")
 default["bcpc"]["hadoop"]["hbase"]["repl"]["target"] = ""
@@ -31,3 +33,5 @@ default["bcpc"]["hadoop"]["hbase"]["ipc"]["warn"]["responsetime"] = 250
 default["bcpc"]["hadoop"]["hbase_master"]["hfilecleaner"]["ttl"] = 3600000
 default["bcpc"]["hadoop"]["hbase_master"]["jmx"]["port"] = 10101
 default["bcpc"]["hadoop"]["hbase_rs"]["jmx"]["port"] = 10102
+#Apache Phoenix related attributes 
+default["bcpc"]["hadoop"]["phoenix"]["tracing"]["enabled"] = false

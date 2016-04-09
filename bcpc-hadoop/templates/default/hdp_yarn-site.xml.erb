@@ -132,9 +132,15 @@
   </property>
 
   <property>
+    <name>yarn.nodemanager.address</name>
+    <value><%=float_host(node[:hostname])%>:<%=node["bcpc"]["hadoop"]["yarn"]["nodemanager"]["port"]%></value>
+  </property>
+
+  <property>
     <name>yarn.nodemanager.hostname</name>
     <value><%= float_host(node[:hostname]) %></value>
   </property>
+
   <% end # if node.run_list.expand(node.chef_environment).recipes.include?("bcpc-hadoop::datanode") %>
 
   <property>
@@ -156,7 +162,7 @@
 
   <property>
     <name>yarn.nodemanager.local-dirs</name>
-    <value><%=@mounts.map{ |d| "file:///disk/#{d}/yarn/local" }.join(",")%></value>
+    <value><%=@mounts.map{ |d| "/disk/#{d}/yarn/local" }.join(",")%></value>
   </property>
 
   <property>
@@ -213,11 +219,6 @@
   <property>
     <name>yarn.nodemanager.linux-container-executor.resources-handler.class</name>
     <value>org.apache.hadoop.yarn.server.nodemanager.util.CgroupsLCEResourcesHandler</value>
-  </property>
-
-  <property>
-    <name>yarn.nodemanager.linux-container-executor.group</name>
-    <value>yarn</value>
   </property>
 
   <property>
@@ -298,4 +299,21 @@
     <value>true</value>
   </property>
   <% end # if node[:bcpc][:hadoop][:kerberos][:enable] == true then %>
+
+  <property>
+    <name>yarn.scheduler.fair.preemption</name>
+    <value><%= node["bcpc"]["hadoop"]["yarn"]["scheduler"]["fair"]["preemption"] %></value>
+  </property>
+
+  <property>
+    <name>yarn.nodemanager.vmem-check-enabled</name>
+    <value><%= node['bcpc']['hadoop']['yarn']['nodemanager']['vmem-check-enabled'] %></value>
+  </property>
+  <% if @hs_hosts.count > 0 %>
+  <property>
+    <name>yarn.log.server.url</name>
+    <value>http://<%="#{float_host(@hs_hosts.map{|i| i[:hostname] }.sort.first)}:19888" if not @hs_hosts.empty?%>/jobhistory/logs</value>
+  </property>
+  <% end %>
+
 </configuration>

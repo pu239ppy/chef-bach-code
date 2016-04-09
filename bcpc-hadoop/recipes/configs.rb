@@ -1,4 +1,5 @@
 require 'base64'
+::Chef::Recipe.send(:include, Bcpc_Hadoop::Helper)
 
 # disable IPv6 (e.g. for HADOOP-8568)
 case node["platform_family"]
@@ -62,12 +63,11 @@ package "hdp-select" do
 end
 
 # Install Java
-include_recipe "bcpc-hadoop::java_config"
 include_recipe "java::default"
 include_recipe "java::oracle_jce"
 
 %w{zookeeper}.each do |pkg|
-  package pkg do
+  package hwx_pkg_str(pkg, node[:bcpc][:hadoop][:distribution][:release]) do
     action :upgrade
   end
 end
